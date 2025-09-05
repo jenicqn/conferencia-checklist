@@ -1,187 +1,110 @@
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // 1) PREENCHA:
+  const SUPABASE_URL = "https://xmhoawlseijujgnhidvq.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtaG9hd2xzZWlqdWpnbmhpZHZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTI0MTUsImV4cCI6MjA3MjY2ODQxNX0.kp3FkAFTd_4ln3JvW3wdneKQ0QkIpKBFI5_TXUD5EZk";
 
-<!doctype html>
-<html lang="pt-br">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Painel de Conferência — Smash do Cabo</title>
-  <style>
-    :root{ --bg:#0b0b0b; --panel:#111; --ink:#f0f0f0; --muted:#9b9b9b; --accent:#ff6a00; --line:#222; }
-    *{box-sizing:border-box} html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,sans-serif}
-    .wrap{max-width:980px;margin:28px auto;padding:0 16px}
-    h1{margin:0 0 10px;font-size:28px}
-    .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
-    .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-end}
-    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .controls input,.controls select{background:#161616;border:1px solid var(--line);color:var(--ink);padding:8px 10px;border-radius:10px}
-    .muted{font-size:12px;color:var(--muted)}
-    .progress{height:10px;background:#1a1a1a;border-radius:10px;overflow:hidden;margin:10px 0}
-    .bar{height:10px;background:var(--accent);width:0%}
-    .grid{display:grid;grid-template-columns:1fr;gap:10px}
-    .row{display:flex;justify-content:space-between;align-items:center;background:#161616;border:1px solid var(--line);border-radius:12px;padding:12px}
-    .ok{color:#79ff89;font-weight:700}
-    .no{color:#ff8a8a;font-weight:700}
-    footer{margin:16px 0 0;text-align:center;color:var(--muted);font-size:11px}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="top">
-      <div>
-        <h1>Painel de Conferência</h1>
-        <div class="muted">Atualiza em tempo real via Supabase.</div>
-      </div>
-      <div class="controls">
-        <label>Local:
-          <select id="location">
-            <option value="loja-principal">loja-principal</option>
-            <option value="quiosque">quiosque</option>
-          </select>
-        </label>
-        <label>Data:
-          <input id="date" type="date">
-        </label>
-        <label>Turno:
-          <select id="turno">
-            <option value="entrada">entrada</option>
-            <option value="saida">saida</option>
-          </select>
-        </label>
-        <label>Função:
-          <select id="funcao">
-            <option value="salao">salao</option>
-            <option value="chapeiro" selected>chapeiro</option>
-            <option value="auxiliar">auxiliar</option>
-            <option value="lideranca">lideranca</option>
-          </select>
-        </label>
-      </div>
-    </div>
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    <div class="panel" style="margin-top:12px">
-      <div class="muted">Chave: <span id="key">—</span></div>
-      <div class="progress"><div id="bar" class="bar"></div></div>
-      <div class="muted" id="summary">Aguardando dados…</div>
-      <div id="grid" class="grid" style="margin-top:8px"></div>
-      <div class="muted" style="margin-top:10px">Atualizado: <span id="updated">—</span></div>
-    </div>
+  // refs UI
+  const els = {
+    location: document.getElementById('location'),
+    date:     document.getElementById('date'),
+    turno:    document.getElementById('turno'),
+    funcao:   document.getElementById('funcao'),
+    key:      document.getElementById('key'),
+    bar:      document.getElementById('bar'),
+    summary:  document.getElementById('summary'),
+    grid:     document.getElementById('grid'),
+    updated:  document.getElementById('updated'),
+  };
 
-    <footer>Smash do Cabo • conferência</footer>
-  </div>
+  // default hoje
+  const today = new Date().toISOString().slice(0,10);
+  if (els.date) els.date.value = today;
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script type="module">
-    // 1) PREENCHA:
-    const SUPABASE_URL = "https://xmhoawlseijujgnhidvq.supabase.co";
-    const SUPABASE_ANON_KEY = "SUA_ANON_KEY_AQUI";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const keyObj = () => ({
+    location: els.location.value,
+    day: els.date.value || today,
+    turno: els.turno.value,
+    funcao: els.funcao.value
+  });
+  const keyText = k => `${k.location} / ${k.day} / ${k.turno} / ${k.funcao}`;
 
-    // refs UI
-    const els = {
-      location: document.getElementById('location'),
-      date:     document.getElementById('date'),
-      turno:    document.getElementById('turno'),
-      funcao:   document.getElementById('funcao'),
-      key:      document.getElementById('key'),
-      bar:      document.getElementById('bar'),
-      summary:  document.getElementById('summary'),
-      grid:     document.getElementById('grid'),
-      updated:  document.getElementById('updated'),
-    };
+  let lastUpdatedAt = null;   // evita re-render desnecessário
+  let timer = null;           // intervalo do polling
+  const POLL_MS = 3000;       // ajuste se quiser (3000 = 3s)
 
-    // default hoje
-    const today = new Date().toISOString().slice(0,10);
-    els.date.value = today;
+  async function fetchState(k){
+    const { data, error } = await supabase
+      .from('checklist_states')
+      .select('*')
+      .eq('location', k.location)
+      .eq('day', k.day)
+      .eq('turno', k.turno)
+      .eq('funcao', k.funcao)
+      .maybeSingle();
 
-    let channel = null;
-
-    function keyObj(){
-      return {
-        location: els.location.value,
-        day: els.date.value || today,
-        turno: els.turno.value,
-        funcao: els.funcao.value
-      };
+    if (error && error.details !== 'The result contains 0 rows') {
+      console.warn('select error:', error.message);
+      return null;
     }
-    const keyText = k => `${k.location} / ${k.day} / ${k.turno} / ${k.funcao}`;
+    return data || null;
+  }
 
-    async function loadOnce(k){
-      const { data, error } = await supabase
-        .from('checklist_states')
-        .select('*')
-        .eq('location', k.location)
-        .eq('day', k.day)
-        .eq('turno', k.turno)
-        .eq('funcao', k.funcao)
-        .maybeSingle();
+  function render(row){
+    const data = row || {};
+    const items = data.items || {};
+    const keys = Object.keys(items);
 
-      if (error && error.details !== 'The result contains 0 rows') {
-        console.warn('select error:', error.message);
-      }
-      render(data || null);
+    const done = keys.filter(k=>{
+      const it = items[k];
+      return (typeof it === 'object') ? !!it.sent : !!it;
+    }).length;
+
+    const total = keys.length;
+    const pct = total ? Math.round(done*100/total) : (data.progress ?? 0);
+
+    els.bar.style.width = pct + '%';
+    els.summary.textContent = total ? `${done}/${total} concluídos • ${pct}%` : 'Aguardando itens…';
+    els.updated.textContent = data.updated_at ? new Date(data.updated_at).toLocaleString('pt-BR') : '—';
+
+    els.grid.innerHTML = total
+      ? keys.sort().map(k=>{
+          const it = items[k];
+          const ok = (typeof it === 'object') ? !!it.sent : !!it;
+          const label = (typeof it === 'object' && it.text) ? it.text : k.replaceAll('_',' ');
+          return `<div class="row"><div>${label}</div><div class="${ok?'ok':'no'}">${ok?'OK':'Pendente'}</div></div>`;
+        }).join('')
+      : '<div class="muted">Sem itens enviados ainda.</div>';
+  }
+
+  async function tick(){
+    const k = keyObj();
+    els.key.textContent = keyText(k);
+    const row = await fetchState(k);
+    const currentUpdated = row?.updated_at || null;
+
+    // só re-renderiza se mudou
+    if (currentUpdated !== lastUpdatedAt) {
+      lastUpdatedAt = currentUpdated;
+      render(row);
     }
+  }
 
-    function subscribe(k){
-      if (channel) { supabase.removeChannel(channel); channel = null; }
+  function startPolling(){
+    if (timer) clearInterval(timer);
+    tick(); // roda já
+    timer = setInterval(tick, POLL_MS);
+  }
 
-      channel = supabase.channel('checklist-live')
-        .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'checklist_states',
-            filter: `location=eq.${k.location},day=eq.${k.day},turno=eq.${k.turno},funcao=eq.${k.funcao}`
-          }, (payload) => {
-            render(payload.new || null);
-          })
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') await loadOnce(k);
-        });
-    }
+  ['change','input'].forEach(evt=>{
+    els.location.addEventListener(evt, startPolling);
+    els.date.addEventListener(evt, startPolling);
+    els.turno.addEventListener(evt, startPolling);
+    els.funcao.addEventListener(evt, startPolling);
+  });
 
-    function render(row){
-      els.key.textContent = keyText(keyObj());
-
-      const data = row || {};
-      const items = data.items || {};
-      const keys = Object.keys(items);
-
-      const done = keys.filter(k=>{
-        const it = items[k];
-        return (typeof it === 'object') ? !!it.sent : !!it;
-      }).length;
-
-      const total = keys.length;
-      const pct = total ? Math.round(done*100/total) : (data.progress ?? 0);
-
-      els.bar.style.width = pct + '%';
-      els.summary.textContent = total ? `${done}/${total} concluídos • ${pct}%` : 'Aguardando itens…';
-      els.updated.textContent = data.updated_at ? new Date(data.updated_at).toLocaleString('pt-BR') : '—';
-
-      els.grid.innerHTML = total
-        ? keys.sort().map(k=>{
-            const it = items[k];
-            const ok = (typeof it === 'object') ? !!it.sent : !!it;
-            const label = (typeof it === 'object' && it.text) ? it.text : k.replaceAll('_',' ');
-            return `<div class="row"><div>${label}</div><div class="${ok?'ok':'no'}">${ok?'OK':'Pendente'}</div></div>`;
-          }).join('')
-        : '<div class="muted">Sem itens enviados ainda.</div>';
-    }
-
-    function attach(){
-      const k = keyObj();
-      els.key.textContent = keyText(k);
-      subscribe(k);
-    }
-
-    ['change','input'].forEach(evt=>{
-      els.location.addEventListener(evt, attach);
-      els.date.addEventListener(evt, attach);
-      els.turno.addEventListener(evt, attach);
-      els.funcao.addEventListener(evt, attach);
-    });
-
-    attach();
-  </script>
-</body>
-</html>
+  // inicia
+  startPolling();
+</script>
